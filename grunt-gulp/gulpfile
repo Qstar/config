@@ -1,0 +1,157 @@
+var gulp = require('gulp');
+var coffee = require('gulp-coffee');
+var concat = require('gulp-concat');
+var less = require('gulp-less');
+var livereload = require('gulp-livereload');
+var nodemon = require('gulp-nodemon');
+var plumber = require('gulp-plumber');
+var sourcemaps = require('gulp-sourcemaps');
+var uglify = require('gulp-uglify');
+
+var del = require('del');
+var server = require('gulp-server-livereload');
+
+var vendorDir = 'app/bower_components';
+var scriptsDir = 'app/scripts';
+
+gulp.task('watch', function () {
+    gulp.watch('app/styles/**/*.less', ['less']);
+    gulp.watch('app/scripts/**/*.coffee', ['coffee']);
+    gulp.watch('app/scripts/*.coffee', ['coffee']);
+});
+
+gulp.task('livereload', function () {
+    livereload.listen();
+    nodemon({
+        script: 'bin/www',
+        ext: 'html js'
+    }).on('restart', function () {
+        setTimeout(function () {
+            livereload.changed(__dirname);
+        }, 1000);
+    });
+});
+
+// Clean
+gulp.task('clean', function (cb) {
+    del([
+        'dist',
+        // here we use a globbing pattern to match everything inside the `mobile` folder
+        '.tmp',
+        // we don't want to clean this file though so we negate the pattern
+        '!dist/.git*'
+    ], cb);
+});
+
+gulp.task('less', function () {
+    gulp.src('app/styles/main.less')
+        .pipe(plumber())
+        .pipe(less())
+        .pipe(gulp.dest('dist/styles'))
+        .pipe(gulp.dest('app/styles/'))
+        .pipe(livereload());
+});
+
+var coffeeFiles = [
+    scriptsDir + '/app.coffee',
+    scriptsDir + '/common/*.coffee',
+    scriptsDir + '/stock/*.coffee',
+    scriptsDir + '/company/*.coffee',
+    scriptsDir + '/theme/*.coffee',
+    scriptsDir + '/fund/*.coffee',
+    scriptsDir + '/private_fund/*.coffee',
+    scriptsDir + '/news/*.coffee',
+    scriptsDir + '/announcement/*.coffee',
+    scriptsDir + '/research_report/*.coffee',
+    scriptsDir + '/user/*.coffee'
+];
+gulp.task('coffee', function () {
+    gulp.src(coffeeFiles)
+        .pipe(coffee())
+        .pipe(concat('app.js'))
+        .pipe(gulp.dest('dist/scripts/'))
+        .pipe(gulp.dest('app/scripts/common'))
+        .pipe(livereload());
+});
+gulp.task('coffeeDeploy', function () {
+    gulp.src(coffeeFiles)
+        .pipe(sourcemaps.init())
+        .pipe(coffee())
+        .pipe(uglify())
+        .pipe(concat('app.js'))
+        .pipe(gulp.dest('dist/scripts/'))
+        .pipe(livereload());
+});
+
+var vendorJsFiles = [
+    vendorDir + '/jquery/dist/jquery.js',
+    vendorDir + '/bootstrap/dist/js/bootstrap.js',
+    vendorDir + '/angular/angular.js',
+    vendorDir + '/angular-animate/angular-animate.js',
+    vendorDir + '/angular-bootstrap/ui-bootstrap-tpls.js',
+    vendorDir + '/angular-cookies/angular-cookies.js',
+    vendorDir + '/angular-translate/angular-translate.js',
+    vendorDir + '/angular-translate-handler-log/angular-translate-handler-log.js',
+    vendorDir + '/angular-translate-interpolation-messageformat/angular-translate-interpolation-messageformat.js',
+    vendorDir + '/angular-translate-loader-partial/angular-translate-loader-partial.js',
+    vendorDir + '/angular-translate-loader-static-files/angular-translate-loader-static-files.js',
+    vendorDir + '/angular-translate-storage-cookie/angular-translate-storage-cookie.js',
+    vendorDir + '/angular-translate-storage-local/angular-translate-storage-local.js',
+    vendorDir + '/messageformat/messageformat.js'
+];
+gulp.task('js', function () {
+    gulp.src(vendorJsFiles)
+        .pipe(concat('vendor.js'))
+        .pipe(gulp.dest('dist/scripts'))
+        .pipe(gulp.dest('app/scripts/common'));
+});
+gulp.task('jsDeploy', function () {
+    gulp.src(vendorJsFiles)
+        .pipe(sourcemaps.init())
+        .pipe(uglify())
+        .pipe(concat('vendor.js'))
+        // .pipe(sourcemaps.write())
+        .pipe(gulp.dest('dist/scripts'));
+});
+
+gulp.task('copy', function () {
+    gulp.src('app/bower_components/font-awesome/css/*')
+        .pipe(gulp.dest('dist/bower_components/font-awesome/css'));
+    gulp.src('app/bower_components/font-awesome/fonts/*')
+        .pipe(gulp.dest('dist/bower_components/font-awesome/fonts'));
+    gulp.src('app/favicon.ico')
+        .pipe(gulp.dest('dist/'));
+    gulp.src('app/bower_components/bootstrap/dist/fonts/*')
+        .pipe(gulp.dest('dist/fonts'));
+    gulp.src('app/i18n/**/*')
+        .pipe(gulp.dest('dist/i18n/'));
+    gulp.src('app/images/common/*')
+        .pipe(gulp.dest('dist/images/common/'));
+    gulp.src('app/images/fallback/*')
+        .pipe(gulp.dest('dist/images/fallback/'));
+    gulp.src('app/index.html')
+        .pipe(gulp.dest('dist/'));
+    gulp.src('app/views/**/*')
+        .pipe(gulp.dest('dist/views/'));
+});
+
+gulp.task('webserver', function () {
+    gulp.src('app')
+        .pipe(server({
+            defaultFile: 'index.html'
+        }));
+});
+
+gulp.task('static', [
+    'js',
+    'copy'
+]);
+
+gulp.task('default', [
+    'less',
+    'coffee',
+    'watch',
+    'livereload',
+    'copy',
+    'webserver'
+]);
